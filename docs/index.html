@@ -107,35 +107,6 @@
   }
   .big-btn.selected.yes { background: var(--green); border-color: var(--green); color: #fff; }
   .big-btn.selected.no { background: var(--red); border-color: var(--red); color: #fff; }
-  .stepper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-  }
-  .stepper button {
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    border: none;
-    background: var(--pink);
-    color: #fff;
-    font-size: 24px;
-    cursor: pointer;
-  }
-  .stepper button:disabled { background: var(--border); }
-  .stepper .count {
-    font-size: 28px;
-    font-weight: 700;
-    min-width: 40px;
-    text-align: center;
-  }
-  .stepper-label {
-    text-align: center;
-    color: var(--muted);
-    font-size: 13px;
-    margin-top: 6px;
-  }
   .pills { display: flex; flex-direction: column; gap: 10px; }
   .pill {
     padding: 16px;
@@ -231,6 +202,42 @@
     text-align: left;
   }
   .required { color: var(--red); }
+  .companion-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .companion-row { display: flex; gap: 8px; align-items: flex-start; }
+  .companion-fields { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .companion-fields input {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: inherit;
+  }
+  .remove-companion {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--red);
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .add-companion-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: 2px dashed var(--pink);
+    background: transparent;
+    color: var(--pink-dark);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -260,7 +267,9 @@ let AVAILABLE_GIFTS = [];
 let state = {
   name: "", phone: "", email: "", address: "",
   attending: null,
-  headcount: 1,
+  companionsMode: null, // "no" | "yes"
+  companions: [], // [{name, phone}]
+  isGodparent: null, // "Yes" | "No"
   godparent: "None",
   gift: "",
   notes: ""
@@ -389,51 +398,94 @@ function renderAttendingSection() {
   }
 
   if (state.attending === "Yes") {
-    const giftCards = AVAILABLE_GIFTS.map(g => `
-      <div class="gift-card ${state.gift === g ? "selected" : ""}" data-gift="${escapeHtml(g)}">
-        <span>${escapeHtml(g)}</span>
-        <span class="check">✓</span>
-      </div>
-    `).join("");
-
     el.innerHTML = `
-      <div class="card">
-        <div class="question">How many of you will attend? <span class="hint">(including yourself)</span></div>
-        <div class="stepper">
-          <button id="stepDown" type="button">−</button>
-          <div class="count" id="stepCount">${state.headcount}</div>
-          <button id="stepUp" type="button">+</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="question">Would you like to be a godparent (ninong/ninang) for the christening?</div>
-        <div class="pills">
-          <div class="pill ${state.godparent === "None" ? "selected" : ""}" data-gp="None">Not this time</div>
-          <div class="pill ${state.godparent === "Ninong" ? "selected" : ""}" data-gp="Ninong">Ninong (godfather)</div>
-          <div class="pill ${state.godparent === "Ninang" ? "selected" : ""}" data-gp="Ninang">Ninang (godmother)</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="question">Would you like to bring a gift? <span class="hint">(optional)</span></div>
-        <div class="gift-grid">
-          <div class="gift-card ${state.gift === "" ? "selected" : ""}" data-gift="">
-            <span>No gift / I'll decide later</span>
-            <span class="check">✓</span>
-          </div>
-          ${giftCards}
-        </div>
-      </div>
-
+      ${buildCompanionsCard()}
+      ${buildGodparentCard()}
       <div class="card">
         <label>Notes for the family (optional)</label>
         <textarea id="fNotes">${escapeHtml(state.notes)}</textarea>
       </div>
     `;
-    bindAttendingYesHandlers();
+    bindCompanionsHandlers();
+    bindGodparentHandlers();
     bindNotes();
   }
+}
+
+function buildCompanionsCard() {
+  const companionRows = state.companions.map((c, i) => `
+    <div class="companion-row">
+      <div class="companion-fields">
+        <input type="text" class="companion-name" data-idx="${i}" placeholder="Guest's full name" value="${escapeHtml(c.name)}">
+        <input type="tel" class="companion-phone" data-idx="${i}" placeholder="Phone (optional)" value="${escapeHtml(c.phone)}">
+      </div>
+      <button type="button" class="remove-companion" data-idx="${i}">✕</button>
+    </div>
+  `).join("");
+
+  const addSection = state.companionsMode === "yes" ? `
+    <div class="companion-list">${companionRows}</div>
+    <button type="button" class="add-companion-btn" id="addCompanionBtn">+ Add another guest</button>
+  ` : "";
+
+  return `
+    <div class="card">
+      <div class="question">Will you bring anyone with you?</div>
+      <div class="pills">
+        <div class="pill ${state.companionsMode === "no" ? "selected" : ""}" data-mode="no">N/A — Just me</div>
+        <div class="pill ${state.companionsMode === "yes" ? "selected" : ""}" data-mode="yes">Yes, I'll bring others</div>
+      </div>
+      ${addSection}
+    </div>
+  `;
+}
+
+function buildGodparentCard() {
+  const typeSection = state.isGodparent === "Yes" ? `
+    <div class="pills" style="margin-top:12px;">
+      <div class="pill ${state.godparent === "Ninong" ? "selected" : ""}" data-gp="Ninong">Ninong (godfather)</div>
+      <div class="pill ${state.godparent === "Ninang" ? "selected" : ""}" data-gp="Ninang">Ninang (godmother)</div>
+    </div>
+  ` : "";
+
+  const giftSection = state.isGodparent === "Yes" ? buildGiftCard() : "";
+
+  return `
+    <div class="card">
+      <div class="question">Are you one of the godparents (Ninong/Ninang) for the Christening?</div>
+      <div class="btn-row">
+        <button type="button" class="big-btn ${state.isGodparent === "Yes" ? "selected yes" : ""}" id="btnGpYes">✅ Yes</button>
+        <button type="button" class="big-btn ${state.isGodparent === "No" ? "selected no" : ""}" id="btnGpNo">❌ No</button>
+      </div>
+      ${typeSection}
+    </div>
+    ${giftSection}
+  `;
+}
+
+function buildGiftCard() {
+  if (AVAILABLE_GIFTS.length === 0) {
+    return `
+      <div class="card">
+        <div class="question">Gift for the celebrant</div>
+        <p class="hint">All gifts have already been claimed — thank you for volunteering as a godparent!</p>
+      </div>
+    `;
+  }
+
+  const giftCards = AVAILABLE_GIFTS.map(g => `
+    <div class="gift-card ${state.gift === g ? "selected" : ""}" data-gift="${escapeHtml(g)}">
+      <span>${escapeHtml(g)}</span>
+      <span class="check">✓</span>
+    </div>
+  `).join("");
+
+  return `
+    <div class="card">
+      <div class="question">Please select a gift to bring <span class="required">*</span></div>
+      <div class="gift-grid">${giftCards}</div>
+    </div>
+  `;
 }
 
 function bindStaticHandlers() {
@@ -460,12 +512,56 @@ function bindNotes() {
   if (notesEl) notesEl.addEventListener("input", e => state.notes = e.target.value);
 }
 
-function bindAttendingYesHandlers() {
-  document.getElementById("stepDown").addEventListener("click", () => {
-    if (state.headcount > 1) { state.headcount--; document.getElementById("stepCount").textContent = state.headcount; }
+function bindCompanionsHandlers() {
+  document.querySelectorAll(".pill[data-mode]").forEach(pill => {
+    pill.addEventListener("click", () => {
+      state.companionsMode = pill.getAttribute("data-mode");
+      if (state.companionsMode === "no") {
+        state.companions = [];
+      } else if (state.companions.length === 0) {
+        state.companions.push({ name: "", phone: "" });
+      }
+      renderAttendingSection();
+    });
   });
-  document.getElementById("stepUp").addEventListener("click", () => {
-    if (state.headcount < 20) { state.headcount++; document.getElementById("stepCount").textContent = state.headcount; }
+
+  const addBtn = document.getElementById("addCompanionBtn");
+  if (addBtn) {
+    addBtn.addEventListener("click", () => {
+      if (1 + state.companions.length >= 20) return;
+      state.companions.push({ name: "", phone: "" });
+      renderAttendingSection();
+    });
+  }
+
+  document.querySelectorAll(".companion-name").forEach(inp => {
+    inp.addEventListener("input", e => {
+      state.companions[parseInt(e.target.getAttribute("data-idx"), 10)].name = e.target.value;
+    });
+  });
+  document.querySelectorAll(".companion-phone").forEach(inp => {
+    inp.addEventListener("input", e => {
+      state.companions[parseInt(e.target.getAttribute("data-idx"), 10)].phone = e.target.value;
+    });
+  });
+  document.querySelectorAll(".remove-companion").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.companions.splice(parseInt(btn.getAttribute("data-idx"), 10), 1);
+      renderAttendingSection();
+    });
+  });
+}
+
+function bindGodparentHandlers() {
+  document.getElementById("btnGpYes").addEventListener("click", () => {
+    state.isGodparent = "Yes";
+    renderAttendingSection();
+  });
+  document.getElementById("btnGpNo").addEventListener("click", () => {
+    state.isGodparent = "No";
+    state.godparent = "None";
+    state.gift = "";
+    renderAttendingSection();
   });
 
   document.querySelectorAll(".pill[data-gp]").forEach(pill => {
@@ -515,9 +611,36 @@ async function handleSubmit() {
     showError("Please let us know if you'll be attending.");
     return;
   }
-  if (state.attending === "Yes" && (state.headcount < 1 || state.headcount > 20)) {
-    showError("Headcount must be between 1 and 20.");
-    return;
+
+  if (state.attending === "Yes") {
+    if (state.companionsMode === null) {
+      showError("Please let us know if you'll be bringing anyone.");
+      return;
+    }
+    if (state.companionsMode === "yes") {
+      if (state.companions.length === 0) {
+        showError("Please add at least one guest, or choose N/A.");
+        return;
+      }
+      if (state.companions.some(c => !c.name.trim())) {
+        showError("Please enter a name for each guest you're bringing.");
+        return;
+      }
+    }
+    if (state.isGodparent === null) {
+      showError("Please let us know if you're a godparent for the christening.");
+      return;
+    }
+    if (state.isGodparent === "Yes") {
+      if (state.godparent !== "Ninong" && state.godparent !== "Ninang") {
+        showError("Please select Ninong or Ninang.");
+        return;
+      }
+      if (AVAILABLE_GIFTS.length > 0 && !state.gift) {
+        showError("Please select a gift to bring.");
+        return;
+      }
+    }
   }
 
   const btn = document.getElementById("submitBtn");
@@ -525,11 +648,24 @@ async function handleSubmit() {
   btn.textContent = "Submitting…";
   submitted = true;
 
+  const payload = {
+    name: state.name,
+    phone: state.phone,
+    email: state.email,
+    address: state.address,
+    attending: state.attending,
+    companions: state.companionsMode === "yes" ? state.companions : [],
+    isGodparent: state.isGodparent,
+    godparent: state.godparent,
+    gift: state.gift,
+    notes: state.notes
+  };
+
   try {
     const res = await fetch(WEB_APP_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(state)
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
 
@@ -585,6 +721,10 @@ function renderSuccess() {
   }
 
   let extras = "";
+  if (state.attending === "Yes" && state.companionsMode === "yes" && state.companions.length > 0) {
+    const names = state.companions.map(c => escapeHtml(c.name.trim())).filter(Boolean).join(", ");
+    extras += `<div class="note-box">👥 Bringing: ${names} <span class="hint">(party of ${1 + state.companions.length})</span></div>`;
+  }
   if (state.attending === "Yes" && state.godparent && state.godparent !== "None") {
     extras += `<div class="note-box">🙏 Thank you for accepting the invitation to be a ${escapeHtml(state.godparent)}! The family will contact you with details.</div>`;
   }
