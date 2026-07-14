@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>You're Invited!</title>
+<style>
+  :root {
+    --pink: #ff8fab;
+    --pink-dark: #e2668f;
+    --peach: #ffd6a5;
+    --cream: #fff8f0;
+    --ink: #3b2e39;
+    --muted: #8a7a86;
+    --green: #4caf7d;
+    --red: #e0645f;
+    --border: #f0dfe6;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(180deg, var(--peach) 0%, var(--cream) 220px, var(--cream) 100%);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+  .card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(59,46,57,0.06);
+  }
+  .hero {
+    text-align: center;
+    padding: 28px 20px;
+  }
+  .hero .emoji { font-size: 40px; margin-bottom: 8px; }
+  .hero h1 {
+    font-size: 26px;
+    margin: 4px 0 6px;
+    color: var(--pink-dark);
+  }
+  .hero .subtitle {
+    font-size: 15px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .hero .details {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 4px 0;
+  }
+  .hero .details.muted { font-weight: 400; color: var(--muted); }
+  .hero .message {
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--cream);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin: 14px 0 6px;
+  }
+  label:first-child { margin-top: 0; }
+  input[type=text], input[type=tel], input[type=email], textarea {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  input:focus, textarea:focus { outline: 2px solid var(--pink); }
+  .question {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .btn-row { display: flex; gap: 12px; }
+  .big-btn {
+    flex: 1;
+    padding: 18px;
+    font-size: 17px;
+    font-weight: 700;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: var(--cream);
+    color: var(--ink);
+    cursor: pointer;
+    min-height: 56px;
+  }
+  .big-btn.selected.yes { background: var(--green); border-color: var(--green); color: #fff; }
+  .big-btn.selected.no { background: var(--red); border-color: var(--red); color: #fff; }
+  .stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+  .stepper button {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: none;
+    background: var(--pink);
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+  }
+  .stepper button:disabled { background: var(--border); }
+  .stepper .count {
+    font-size: 28px;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: center;
+  }
+  .stepper-label {
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 6px;
+  }
+  .pills { display: flex; flex-direction: column; gap: 10px; }
+  .pill {
+    padding: 16px;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: var(--cream);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    min-height: 48px;
+  }
+  .pill.selected { background: var(--pink); border-color: var(--pink); color: #fff; }
+  .gift-grid { display: flex; flex-direction: column; gap: 10px; }
+  .gift-card {
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: var(--cream);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .gift-card.selected { background: var(--pink); border-color: var(--pink); color: #fff; }
+  .gift-card .check { font-size: 18px; opacity: 0; }
+  .gift-card.selected .check { opacity: 1; }
+  .submit-btn {
+    width: 100%;
+    padding: 18px;
+    font-size: 17px;
+    font-weight: 700;
+    border-radius: 14px;
+    border: none;
+    background: var(--pink-dark);
+    color: #fff;
+    cursor: pointer;
+    min-height: 56px;
+    margin-top: 8px;
+  }
+  .submit-btn:disabled { background: var(--border); color: var(--muted); }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .error-banner {
+    background: #fdeceb;
+    color: var(--red);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .error-banner.show { display: block; }
+  .hidden { display: none !important; }
+  .loading-screen, .fatal-error {
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid var(--border);
+    border-top-color: var(--pink);
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .success-screen { text-align: center; padding: 20px 4px; }
+  .success-screen .emoji { font-size: 48px; }
+  .success-screen h2 { color: var(--pink-dark); margin: 8px 0; }
+  .success-screen p { color: var(--ink); }
+  .cal-buttons { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .cal-btn {
+    display: block;
+    padding: 16px;
+    border-radius: 14px;
+    border: 2px solid var(--border);
+    background: var(--cream);
+    color: var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .note-box {
+    background: var(--cream);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-top: 16px;
+    font-size: 14px;
+    text-align: left;
+  }
+  .required { color: var(--red); }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="loading-screen" id="loadingScreen">
+    <div class="spinner"></div>
+    <p>Loading invitation…</p>
+  </div>
+
+  <div class="fatal-error hidden" id="fatalError">
+    <p>😔 We couldn't load the invitation right now.</p>
+    <p class="hint">Please check your connection and try again.</p>
+    <button class="submit-btn" onclick="location.reload()">Retry</button>
+  </div>
+
+  <div id="mainContent" class="hidden"></div>
+</div>
+
+<script>
+// ====== CONFIGURATION ======
+// Replace with your deployed Apps Script Web App URL (ends in /exec).
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFpNyiy_lKrVjjZ5WRC8LEslSuSR1t7VPYFzz8mKYrAWRwGhW38crvxgsNboixP26Saw/exec";
+
+// ====== STATE ======
+let CONFIG = {};
+let AVAILABLE_GIFTS = [];
+let state = {
+  name: "", phone: "", email: "", address: "",
+  attending: null,
+  headcount: 1,
+  godparent: "None",
+  gift: "",
+  notes: ""
+};
+let submitted = false;
+
+// ====== HELPERS ======
+function isTbd(v) {
+  return !v || v.toString().toUpperCase().indexOf("TBD") !== -1;
+}
+
+function escapeHtml(str) {
+  return (str || "").toString()
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+// Parses "10:00 AM" -> {h,m} in 24h
+function parseTime(t) {
+  const m = /(\d+):(\d+)\s*(AM|PM)/i.exec(t || "");
+  if (!m) return { h: 0, m: 0 };
+  let h = parseInt(m[1], 10);
+  const mins = parseInt(m[2], 10);
+  const ampm = m[3].toUpperCase();
+  if (ampm === "PM" && h !== 12) h += 12;
+  if (ampm === "AM" && h === 12) h = 0;
+  return { h: h, m: mins };
+}
+
+// Builds a UTC Date from event_date + a "hh:mm AM/PM" string, assuming
+// Asia/Manila (fixed UTC+8, no DST).
+function buildUtcDate(dateStr, timeStr) {
+  const parts = (dateStr || "2026-01-01").split("-").map(Number);
+  const t = parseTime(timeStr);
+  return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], t.h - 8, t.m, 0));
+}
+
+function fmtIcsDate(d) {
+  return d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+}
+
+function fmtGcalDate(d) {
+  return d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+}
+
+// ====== FETCH INFO ======
+async function loadInfo() {
+  try {
+    const res = await fetch(WEB_APP_URL + "?action=info");
+    const data = await res.json();
+    if (data.status !== "ok") throw new Error("bad status");
+    CONFIG = data.config || {};
+    AVAILABLE_GIFTS = data.availableGifts || [];
+    document.getElementById("loadingScreen").classList.add("hidden");
+    document.getElementById("mainContent").classList.remove("hidden");
+    renderForm();
+  } catch (err) {
+    document.getElementById("loadingScreen").classList.add("hidden");
+    document.getElementById("fatalError").classList.remove("hidden");
+  }
+}
+
+// ====== RENDER ======
+function renderForm() {
+  const venue = isTbd(CONFIG.venue_name) ? "To be announced" : CONFIG.venue_name;
+  const address = isTbd(CONFIG.venue_address) ? "" : `<div class="details muted">${escapeHtml(CONFIG.venue_address)}</div>`;
+  const deadline = isTbd(CONFIG.rsvp_deadline) ? "" : `<div class="hint" style="margin-top:8px;">Please RSVP by ${escapeHtml(CONFIG.rsvp_deadline)}</div>`;
+
+  const html = `
+    <div class="card hero">
+      <div class="emoji">🎉👶✝️</div>
+      <h1>${escapeHtml(CONFIG.event_title || "You're Invited!")}</h1>
+      <div class="subtitle">Birthday &amp; Christening — a double celebration!</div>
+      <div class="details">${escapeHtml(CONFIG.event_date || "")} · ${escapeHtml(CONFIG.start_time || "")}–${escapeHtml(CONFIG.end_time || "")}</div>
+      <div class="details">${escapeHtml(venue)}</div>
+      ${address}
+      ${deadline}
+      <div class="message">${escapeHtml(CONFIG.host_message || "")}</div>
+    </div>
+
+    <div class="card">
+      <label>Full name <span class="required">*</span></label>
+      <input type="text" id="fName" placeholder="Juan Dela Cruz" value="${escapeHtml(state.name)}">
+
+      <label>Phone <span class="required">*</span></label>
+      <input type="tel" id="fPhone" placeholder="09XX XXX XXXX" value="${escapeHtml(state.phone)}">
+
+      <label>Email (optional)</label>
+      <input type="email" id="fEmail" placeholder="you@example.com" value="${escapeHtml(state.email)}">
+
+      <label>Address (optional)</label>
+      <input type="text" id="fAddress" placeholder="City, Province" value="${escapeHtml(state.address)}">
+    </div>
+
+    <div class="card">
+      <div class="question">Will you be attending?</div>
+      <div class="btn-row">
+        <button class="big-btn ${state.attending === "Yes" ? "selected yes" : ""}" id="btnYes">✅ Yes</button>
+        <button class="big-btn ${state.attending === "No" ? "selected no" : ""}" id="btnNo">❌ No</button>
+      </div>
+    </div>
+
+    <div id="attendingSection"></div>
+
+    <div class="error-banner" id="errorBanner"></div>
+
+    <button class="submit-btn" id="submitBtn">Submit RSVP</button>
+  `;
+
+  document.getElementById("mainContent").innerHTML = html;
+  bindStaticHandlers();
+  renderAttendingSection();
+}
+
+function renderAttendingSection() {
+  const el = document.getElementById("attendingSection");
+  if (state.attending === "No") {
+    el.innerHTML = `
+      <div class="card">
+        <label>Leave a message for the family (optional)</label>
+        <textarea id="fNotes">${escapeHtml(state.notes)}</textarea>
+      </div>
+    `;
+    bindNotes();
+    return;
+  }
+
+  if (state.attending === "Yes") {
+    const giftCards = AVAILABLE_GIFTS.map(g => `
+      <div class="gift-card ${state.gift === g ? "selected" : ""}" data-gift="${escapeHtml(g)}">
+        <span>${escapeHtml(g)}</span>
+        <span class="check">✓</span>
+      </div>
+    `).join("");
+
+    el.innerHTML = `
+      <div class="card">
+        <div class="question">How many of you will attend? <span class="hint">(including yourself)</span></div>
+        <div class="stepper">
+          <button id="stepDown" type="button">−</button>
+          <div class="count" id="stepCount">${state.headcount}</div>
+          <button id="stepUp" type="button">+</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="question">Would you like to be a godparent (ninong/ninang) for the christening?</div>
+        <div class="pills">
+          <div class="pill ${state.godparent === "None" ? "selected" : ""}" data-gp="None">Not this time</div>
+          <div class="pill ${state.godparent === "Ninong" ? "selected" : ""}" data-gp="Ninong">Ninong (godfather)</div>
+          <div class="pill ${state.godparent === "Ninang" ? "selected" : ""}" data-gp="Ninang">Ninang (godmother)</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="question">Would you like to bring a gift? <span class="hint">(optional)</span></div>
+        <div class="gift-grid">
+          <div class="gift-card ${state.gift === "" ? "selected" : ""}" data-gift="">
+            <span>No gift / I'll decide later</span>
+            <span class="check">✓</span>
+          </div>
+          ${giftCards}
+        </div>
+      </div>
+
+      <div class="card">
+        <label>Notes for the family (optional)</label>
+        <textarea id="fNotes">${escapeHtml(state.notes)}</textarea>
+      </div>
+    `;
+    bindAttendingYesHandlers();
+    bindNotes();
+  }
+}
+
+function bindStaticHandlers() {
+  document.getElementById("fName").addEventListener("input", e => state.name = e.target.value);
+  document.getElementById("fPhone").addEventListener("input", e => state.phone = e.target.value);
+  document.getElementById("fEmail").addEventListener("input", e => state.email = e.target.value);
+  document.getElementById("fAddress").addEventListener("input", e => state.address = e.target.value);
+
+  document.getElementById("btnYes").addEventListener("click", () => {
+    state.attending = "Yes";
+    renderForm();
+    focusById("fName", false);
+  });
+  document.getElementById("btnNo").addEventListener("click", () => {
+    state.attending = "No";
+    renderForm();
+  });
+
+  document.getElementById("submitBtn").addEventListener("click", handleSubmit);
+}
+
+function bindNotes() {
+  const notesEl = document.getElementById("fNotes");
+  if (notesEl) notesEl.addEventListener("input", e => state.notes = e.target.value);
+}
+
+function bindAttendingYesHandlers() {
+  document.getElementById("stepDown").addEventListener("click", () => {
+    if (state.headcount > 1) { state.headcount--; document.getElementById("stepCount").textContent = state.headcount; }
+  });
+  document.getElementById("stepUp").addEventListener("click", () => {
+    if (state.headcount < 20) { state.headcount++; document.getElementById("stepCount").textContent = state.headcount; }
+  });
+
+  document.querySelectorAll(".pill[data-gp]").forEach(pill => {
+    pill.addEventListener("click", () => {
+      state.godparent = pill.getAttribute("data-gp");
+      document.querySelectorAll(".pill[data-gp]").forEach(p => p.classList.remove("selected"));
+      pill.classList.add("selected");
+    });
+  });
+
+  document.querySelectorAll(".gift-card[data-gift]").forEach(card => {
+    card.addEventListener("click", () => {
+      state.gift = card.getAttribute("data-gift");
+      document.querySelectorAll(".gift-card[data-gift]").forEach(c => c.classList.remove("selected"));
+      card.classList.add("selected");
+    });
+  });
+}
+
+function focusById(id) {
+  const el = document.getElementById(id);
+  if (el) el.focus();
+}
+
+function showError(msg) {
+  const banner = document.getElementById("errorBanner");
+  if (!banner) return;
+  banner.textContent = msg;
+  banner.classList.add("show");
+}
+
+function clearError() {
+  const banner = document.getElementById("errorBanner");
+  if (banner) banner.classList.remove("show");
+}
+
+// ====== SUBMIT ======
+async function handleSubmit() {
+  if (submitted) return;
+  clearError();
+
+  if (!state.name.trim() || !state.phone.trim()) {
+    showError("Please enter your name and phone number.");
+    return;
+  }
+  if (state.attending === null) {
+    showError("Please let us know if you'll be attending.");
+    return;
+  }
+  if (state.attending === "Yes" && (state.headcount < 1 || state.headcount > 20)) {
+    showError("Headcount must be between 1 and 20.");
+    return;
+  }
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  btn.textContent = "Submitting…";
+  submitted = true;
+
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(state)
+    });
+    const data = await res.json();
+
+    if (data.status === "gift_taken") {
+      AVAILABLE_GIFTS = data.availableGifts || [];
+      state.gift = "";
+      showError("Oops, someone just picked that gift! Please choose another and submit again.");
+      renderAttendingSection();
+      btn.disabled = false;
+      btn.textContent = "Submit RSVP";
+      submitted = false;
+      return;
+    }
+
+    if (data.status !== "ok") {
+      showError(data.message || "Something went wrong. Please try again.");
+      btn.disabled = false;
+      btn.textContent = "Submit RSVP";
+      submitted = false;
+      return;
+    }
+
+    renderSuccess();
+  } catch (err) {
+    showError("Network error — please check your connection and try again.");
+    btn.disabled = false;
+    btn.textContent = "Submit RSVP";
+    submitted = false;
+  }
+}
+
+// ====== SUCCESS SCREEN ======
+function renderSuccess() {
+  const start = buildUtcDate(CONFIG.event_date, CONFIG.start_time);
+  const end = buildUtcDate(CONFIG.event_date, CONFIG.end_time);
+  const venue = isTbd(CONFIG.venue_name) ? "To be announced" : CONFIG.venue_name;
+  const address = isTbd(CONFIG.venue_address) ? "" : CONFIG.venue_address;
+  const location = [venue, address].filter(Boolean).join(", ");
+  const title = CONFIG.event_title || "Kheion's Birthday & Christening";
+  const details = CONFIG.host_message || "";
+
+  const gcalUrl = "https://calendar.google.com/calendar/render?action=TEMPLATE"
+    + "&text=" + encodeURIComponent(title)
+    + "&dates=" + fmtGcalDate(start) + "/" + fmtGcalDate(end)
+    + "&details=" + encodeURIComponent(details)
+    + "&location=" + encodeURIComponent(location);
+
+  let message = `<p>Salamat, ${escapeHtml(state.name)}!</p>`;
+  if (state.attending === "No") {
+    message = `<p>We'll miss you! Thank you for letting us know, ${escapeHtml(state.name)}.</p>`;
+  } else {
+    message += `<p>See you on ${escapeHtml(CONFIG.event_date || "")}!</p>`;
+  }
+
+  let extras = "";
+  if (state.attending === "Yes" && state.godparent && state.godparent !== "None") {
+    extras += `<div class="note-box">🙏 Thank you for accepting the invitation to be a ${escapeHtml(state.godparent)}! The family will contact you with details.</div>`;
+  }
+  if (state.attending === "Yes" && state.gift) {
+    extras += `<div class="note-box">🎁 You're bringing: <strong>${escapeHtml(state.gift)}</strong></div>`;
+  }
+
+  const calButtons = state.attending === "Yes" ? `
+    <div class="cal-buttons">
+      <a class="cal-btn" href="${gcalUrl}" target="_blank" rel="noopener">📅 Add to Google Calendar</a>
+      <button class="cal-btn" id="icsBtn" type="button">⬇️ Download .ics (Apple / Outlook)</button>
+    </div>
+  ` : "";
+
+  document.getElementById("mainContent").innerHTML = `
+    <div class="card success-screen">
+      <div class="emoji">🎊</div>
+      <h2>RSVP received!</h2>
+      ${message}
+      ${extras}
+      ${calButtons}
+    </div>
+  `;
+
+  if (state.attending === "Yes") {
+    document.getElementById("icsBtn").addEventListener("click", () => downloadIcs(start, end, title, details, location));
+  }
+}
+
+function downloadIcs(start, end, title, details, location) {
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Kheion RSVP//EN",
+    "BEGIN:VEVENT",
+    "UID:" + Date.now() + "@kheion-rsvp",
+    "DTSTAMP:" + fmtIcsDate(new Date(start)),
+    "DTSTART:" + fmtIcsDate(start),
+    "DTEND:" + fmtIcsDate(end),
+    "SUMMARY:" + title,
+    "DESCRIPTION:" + (details || "").replace(/\n/g, "\\n"),
+    "LOCATION:" + location,
+    "END:VEVENT",
+    "END:VCALENDAR"
+  ].join("\r\n");
+
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "kheion-celebration.ics";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+loadInfo();
+</script>
+</body>
+</html>
