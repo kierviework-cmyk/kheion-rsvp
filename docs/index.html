@@ -352,16 +352,18 @@ function renderForm() {
 
     <div class="card">
       <label>Full name <span class="required">*</span></label>
-      <input type="text" id="fName" placeholder="Juan Dela Cruz" value="${escapeHtml(state.name)}">
+      <input type="text" id="fName" placeholder="Juan Dela Cruz" value="${escapeHtml(state.name)}" maxlength="200">
 
       <label>Phone <span class="required">*</span></label>
-      <input type="tel" id="fPhone" placeholder="09XX XXX XXXX" value="${escapeHtml(state.phone)}">
+      <input type="tel" id="fPhone" placeholder="09XX XXX XXXX" value="${escapeHtml(state.phone)}" maxlength="20">
 
       <label>Email (optional)</label>
-      <input type="email" id="fEmail" placeholder="you@example.com" value="${escapeHtml(state.email)}">
+      <input type="email" id="fEmail" placeholder="you@example.com" value="${escapeHtml(state.email)}" maxlength="254">
 
       <label>Address (optional)</label>
-      <input type="text" id="fAddress" placeholder="City, Province" value="${escapeHtml(state.address)}">
+      <input type="text" id="fAddress" placeholder="City, Province" value="${escapeHtml(state.address)}" maxlength="300">
+
+      <input type="text" id="fWebsite" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
     </div>
 
     <div class="card">
@@ -390,7 +392,7 @@ function renderAttendingSection() {
     el.innerHTML = `
       <div class="card">
         <label>Leave a message for the family (optional)</label>
-        <textarea id="fNotes">${escapeHtml(state.notes)}</textarea>
+        <textarea id="fNotes" maxlength="1000">${escapeHtml(state.notes)}</textarea>
       </div>
     `;
     bindNotes();
@@ -403,7 +405,7 @@ function renderAttendingSection() {
       ${buildGodparentCard()}
       <div class="card">
         <label>Notes for the family (optional)</label>
-        <textarea id="fNotes">${escapeHtml(state.notes)}</textarea>
+        <textarea id="fNotes" maxlength="1000">${escapeHtml(state.notes)}</textarea>
       </div>
     `;
     bindCompanionsHandlers();
@@ -416,8 +418,8 @@ function buildCompanionsCard() {
   const companionRows = state.companions.map((c, i) => `
     <div class="companion-row">
       <div class="companion-fields">
-        <input type="text" class="companion-name" data-idx="${i}" placeholder="Guest's full name" value="${escapeHtml(c.name)}">
-        <input type="tel" class="companion-phone" data-idx="${i}" placeholder="Phone (optional)" value="${escapeHtml(c.phone)}">
+        <input type="text" class="companion-name" data-idx="${i}" placeholder="Guest's full name" value="${escapeHtml(c.name)}" maxlength="200">
+        <input type="tel" class="companion-phone" data-idx="${i}" placeholder="Phone (optional)" value="${escapeHtml(c.phone)}" maxlength="20">
       </div>
       <button type="button" class="remove-companion" data-idx="${i}">✕</button>
     </div>
@@ -648,6 +650,8 @@ async function handleSubmit() {
   btn.textContent = "Submitting…";
   submitted = true;
 
+  const websiteField = document.getElementById("fWebsite");
+
   const payload = {
     name: state.name,
     phone: state.phone,
@@ -658,7 +662,8 @@ async function handleSubmit() {
     isGodparent: state.isGodparent,
     godparent: state.godparent,
     gift: state.gift,
-    notes: state.notes
+    notes: state.notes,
+    website: websiteField ? websiteField.value : ""
   };
 
   try {

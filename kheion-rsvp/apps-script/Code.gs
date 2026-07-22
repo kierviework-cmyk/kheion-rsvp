@@ -73,9 +73,27 @@ function setupSpreadsheet() {
   if (configSheet.getLastRow() === 0) {
     configSheet.appendRow(CONFIG_HEADERS);
     configSheet.setFrozenRows(1);
+    // Force the values column to Plain Text *before* writing, so Sheets
+    // never silently reinterprets "10:00 AM" / "2026-09-16" as a Date cell.
+    configSheet.getRange('B2:B1000').setNumberFormat('@');
     DEFAULT_CONFIG.forEach(function (row) {
       configSheet.appendRow(row);
     });
+  } else {
+    // Repair: earlier runs let Sheets auto-convert date/time-looking text
+    // into Date cells before Plain Text formatting existed. Force the
+    // format now and rewrite any values that already got corrupted.
+    configSheet.getRange('B2:B1000').setNumberFormat('@');
+    var defaultByKey = {};
+    DEFAULT_CONFIG.forEach(function (row) { defaultByKey[row[0]] = row[1]; });
+    var configValues = configSheet.getDataRange().getValues();
+    for (var r = 1; r < configValues.length; r++) {
+      var key = configValues[r][0];
+      var val = configValues[r][1];
+      if (val instanceof Date && defaultByKey.hasOwnProperty(key)) {
+        configSheet.getRange(r + 1, 2).setValue(defaultByKey[key]);
+      }
+    }
   }
 
   var summarySheet = ss.getSheetByName(SUMMARY_SHEET) || ss.insertSheet(SUMMARY_SHEET);
@@ -172,6 +190,29 @@ function jsonResponse_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
+// Neutralize leading formula-trigger characters (=, +, -, @, tab, CR) before
+// writing untrusted user input to a Sheet — SpreadsheetApp parses cell
+// strings the same way manual entry does, so an unprefixed value starting
+// with one of these becomes a live, auto-evaluating formula on write.
+function sanitizeForSheet_(value) {
+  var str = (value === null || value === undefined) ? '' : value.toString();
+  return /^[=+\-@\t\r]/.test(str) ? ("'" + str) : str;
+}
+
+var MAX_FIELD_LEN = { name: 200, phone: 20, email: 254, address: 300, notes: 1000, companion: 200 };
+
+// Cheap global throttle shared by every caller (Apps Script doesn't expose a
+// reliable per-caller IP), capped low enough to blunt a flood/gift-exhaustion
+// script without affecting normal RSVP traffic.
+function isRateLimited_() {
+  var cache = CacheService.getScriptCache();
+  var key = 'rsvp_submit_count_60s';
+  var count = Number(cache.get(key) || 0);
+  if (count >= 20) return true;
+  cache.put(key, String(count + 1), 60);
+  return false;
+}
+
 function doGet(e) {
   var action = e && e.parameter && e.parameter.action;
 
@@ -185,6 +226,23 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  var payload;
+  try {
+    payload = JSON.parse(e.postData.contents);
+  } catch (parseErr) {
+    return jsonResponse_({ status: 'error', message: 'Invalid submission format.' });
+  }
+
+  // Honeypot: a hidden field real users never see or fill. Pretend success
+  // without writing anything, so an automated filler doesn't retry harder.
+  if ((payload.website || '').toString().trim() !== '') {
+    return jsonResponse_({ status: 'ok' });
+  }
+
+  if (isRateLimited_()) {
+    return jsonResponse_({ status: 'error', message: 'Server is busy, please try again in a moment.' });
+  }
+
   var lock = LockService.getScriptLock();
   var gotLock = lock.tryLock(10000);
 
@@ -193,13 +251,6 @@ function doPost(e) {
   }
 
   try {
-    var payload;
-    try {
-      payload = JSON.parse(e.postData.contents);
-    } catch (parseErr) {
-      return jsonResponse_({ status: 'error', message: 'Invalid submission format.' });
-    }
-
     var name = (payload.name || '').toString().trim();
     var phone = (payload.phone || '').toString().trim();
     var email = (payload.email || '').toString().trim();
@@ -217,12 +268,21 @@ function doPost(e) {
       return jsonResponse_({ status: 'error', message: 'Name and phone are required.' });
     }
 
+    if (name.length > MAX_FIELD_LEN.name || phone.length > MAX_FIELD_LEN.phone ||
+        email.length > MAX_FIELD_LEN.email || address.length > MAX_FIELD_LEN.address ||
+        notes.length > MAX_FIELD_LEN.notes) {
+      return jsonResponse_({ status: 'error', message: 'One of the fields is too long. Please shorten your entry.' });
+    }
+
     if (attending === 'Yes') {
       var companionNames = [];
       for (var c = 0; c < companionsInput.length; c++) {
         var cName = (companionsInput[c].name || '').toString().trim();
         var cPhone = (companionsInput[c].phone || '').toString().trim();
         if (!cName) continue;
+        if (cName.length > MAX_FIELD_LEN.companion || cPhone.length > MAX_FIELD_LEN.companion) {
+          return jsonResponse_({ status: 'error', message: 'A companion name or phone is too long.' });
+        }
         companionNames.push(cPhone ? (cName + ' (' + cPhone + ')') : cName);
       }
       companionsText = companionNames.join('; ');
@@ -262,7 +322,7 @@ function doPost(e) {
         });
       }
 
-      giftsSheet.getRange(giftRow + 1, 2, 1, 2).setValues([[name, new Date()]]);
+      giftsSheet.getRange(giftRow + 1, 2, 1, 2).setValues([[sanitizeForSheet_(name), new Date()]]);
     } else if (attending === 'Yes' && isGodparent && !gift) {
       // Gift is required for godparents, unless none are left to choose from.
       if (getAvailableGifts_().length > 0) {
@@ -276,16 +336,16 @@ function doPost(e) {
     var rsvpSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RSVP_SHEET);
     rsvpSheet.appendRow([
       new Date(),
-      name,
-      phone,
-      email,
-      address,
+      sanitizeForSheet_(name),
+      sanitizeForSheet_(phone),
+      sanitizeForSheet_(email),
+      sanitizeForSheet_(address),
       attending,
       headcount,
       finalGodparent,
       finalGift,
-      notes,
-      companionsText
+      sanitizeForSheet_(notes),
+      sanitizeForSheet_(companionsText)
     ]);
 
     notifyTelegram_(name, attending, headcount, finalGodparent, finalGift, notes);
