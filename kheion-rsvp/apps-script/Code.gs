@@ -4,12 +4,10 @@
  */
 
 var RSVP_SHEET = 'RSVPs';
-var GIFTS_SHEET = 'Gifts';
 var CONFIG_SHEET = 'Config';
 var SUMMARY_SHEET = 'Summary';
 
 var RSVP_HEADERS = ['Timestamp', 'Full name', 'Phone', 'Email', 'Address', 'Attending', 'Headcount', 'Godparent volunteer', 'Gift claimed', 'Notes', 'Companions'];
-var GIFTS_HEADERS = ['Gift item', 'Claimed by', 'Claimed at'];
 var CONFIG_HEADERS = ['key', 'value'];
 
 var DEFAULT_CONFIG = [
@@ -39,18 +37,6 @@ function formatDateWords_(dateStr) {
   return monthName + ' ' + parseInt(m[3], 10) + ', ' + m[1];
 }
 
-var DEFAULT_GIFTS = [
-  'Rice cooker',
-  'Diapers (size 2)',
-  'Baby clothes (12–18 months)',
-  'Feeding bottles set',
-  'Educational toy set',
-  'Baby bath essentials',
-  'Cake (sponsor)',
-  'Drinks (sponsor)',
-  'Balloons & decorations (sponsor)'
-];
-
 /**
  * Run this once from the Apps Script editor (select it in the function
  * dropdown and click Run) to create and seed the three tabs. Safe to
@@ -71,15 +57,6 @@ function setupSpreadsheet() {
       if (existingHeaders.indexOf(header) === -1) {
         rsvpSheet.getRange(1, rsvpSheet.getLastColumn() + 1).setValue(header);
       }
-    });
-  }
-
-  var giftsSheet = ss.getSheetByName(GIFTS_SHEET) || ss.insertSheet(GIFTS_SHEET);
-  if (giftsSheet.getLastRow() === 0) {
-    giftsSheet.appendRow(GIFTS_HEADERS);
-    giftsSheet.setFrozenRows(1);
-    DEFAULT_GIFTS.forEach(function (item) {
-      giftsSheet.appendRow([item, '', '']);
     });
   }
 
@@ -132,8 +109,25 @@ function authorizeMailSending() {
   console.log('Remaining daily email quota: ' + MailApp.getRemainingDailyQuota());
 }
 
+/**
+ * One-time cleanup: wipes all RSVP test rows (keeps the header) so the
+ * sheet starts clean before real guests use the form. Run once from the
+ * editor, then delete this function — it's destructive and has no
+ * business staying in the deployed script long-term.
+ */
+function clearAllTestData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  var rsvpSheet = ss.getSheetByName(RSVP_SHEET);
+  if (rsvpSheet && rsvpSheet.getLastRow() > 1) {
+    rsvpSheet.getRange(2, 1, rsvpSheet.getLastRow() - 1, rsvpSheet.getLastColumn()).clearContent();
+  }
+
+  console.log('Cleared all RSVP rows.');
+}
+
 // Live-formula dashboard — every cell recalculates automatically as rows
-// are appended to RSVPs/Gifts, no code changes or re-runs needed.
+// are appended to RSVPs, no code changes or re-runs needed.
 function seedSummarySheet_(sheet) {
   sheet.getRange('A1').setValue('RSVP Summary').setFontWeight('bold').setFontSize(14);
 
@@ -141,23 +135,13 @@ function seedSummarySheet_(sheet) {
     ['Total RSVPs', '=COUNTA(RSVPs!B2:B)'],
     ['Attending (Yes)', '=COUNTIF(RSVPs!F2:F,"Yes")'],
     ['Not attending (No)', '=COUNTIF(RSVPs!F2:F,"No")'],
-    ['Total headcount', '=SUM(RSVPs!G2:G)'],
-    ['Ninong volunteers', '=COUNTIF(RSVPs!H2:H,"Ninong")'],
-    ['Ninang volunteers', '=COUNTIF(RSVPs!H2:H,"Ninang")'],
-    ['Gifts claimed', '=COUNTA(Gifts!B2:B)'],
-    ['Gifts remaining', '=COUNTA(Gifts!A2:A)-COUNTA(Gifts!B2:B)']
+    ['Total headcount', '=SUM(RSVPs!G2:G)']
   ];
+  GIFT_OPTIONS.forEach(function (option) {
+    stats.push([option, '=COUNTIF(RSVPs!I2:I,"' + option + '")']);
+  });
   sheet.getRange(3, 1, stats.length, 2).setValues(stats);
   sheet.getRange(3, 1, stats.length, 1).setFontWeight('bold');
-
-  sheet.getRange('A12').setValue('Godparent volunteers').setFontWeight('bold');
-  sheet.getRange('A13').setFormula('=IFERROR(QUERY(RSVPs!B2:H,"select B, H where H=\'Ninong\' or H=\'Ninang\' label B \'Name\', H \'Role\'",0),"None yet")');
-
-  sheet.getRange('D12').setValue('Gifts remaining').setFontWeight('bold');
-  sheet.getRange('D13').setFormula('=IFERROR(QUERY(Gifts!A2:A,"select A where A is not null",0),"None left")');
-
-  sheet.getRange('F12').setValue('Gifts claimed').setFontWeight('bold');
-  sheet.getRange('F13').setFormula('=IFERROR(QUERY(Gifts!A2:C,"select A, B where B is not null label A \'Item\', B \'Claimed by\'",0),"None yet")');
 
   sheet.setFrozenRows(2);
   sheet.autoResizeColumns(1, 8);
@@ -194,22 +178,6 @@ function normalizeConfigValue_(key, value) {
   return Utilities.formatDate(value, 'Etc/GMT', 'yyyy-MM-dd');
 }
 
-function getGiftsSheet_() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(GIFTS_SHEET);
-}
-
-function getAvailableGifts_() {
-  var sheet = getGiftsSheet_();
-  var values = sheet.getDataRange().getValues();
-  var gifts = [];
-  for (var i = 1; i < values.length; i++) {
-    var item = values[i][0];
-    var claimedBy = values[i][1];
-    if (item && !claimedBy) gifts.push(item);
-  }
-  return gifts;
-}
-
 function jsonResponse_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -242,8 +210,7 @@ function doGet(e) {
 
   if (action === 'info') {
     var config = getConfigMap_();
-    var availableGifts = getAvailableGifts_();
-    return jsonResponse_({ status: 'ok', config: config, availableGifts: availableGifts });
+    return jsonResponse_({ status: 'ok', config: config });
   }
 
   return jsonResponse_({ status: 'ok', message: 'Kheion RSVP API is running.' });
