@@ -25,6 +25,20 @@ var DEFAULT_CONFIG = [
   ['rsvp_deadline', '[RSVP_DEADLINE_TBD]']
 ];
 
+// Initial, host-confirmed short list — not an inventory (multiple guests
+// can pick the same one, nothing gets "claimed" or crossed out).
+var GIFT_OPTIONS = ['Monetary gift (red envelope)', 'Milk', 'Diapers'];
+
+var MONTH_NAMES_ = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function formatDateWords_(dateStr) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || '');
+  if (!m) return dateStr || '';
+  var monthName = MONTH_NAMES_[parseInt(m[2], 10) - 1];
+  if (!monthName) return dateStr;
+  return monthName + ' ' + parseInt(m[3], 10) + ', ' + m[1];
+}
+
 var DEFAULT_GIFTS = [
   'Rice cooker',
   'Diapers (size 2)',
@@ -106,6 +120,16 @@ function setupSpreadsheet() {
   if (sheet1 && sheet1.getLastRow() === 0 && ss.getSheets().length > 1) {
     ss.deleteSheet(sheet1);
   }
+}
+
+/**
+ * Run this once from the editor after adding the confirmation-email feature.
+ * Sending mail needs a permission the original deployment authorization
+ * didn't cover; calling any Mail service here triggers that consent prompt
+ * ahead of time so the first real guest submission doesn't fail silently.
+ */
+function authorizeMailSending() {
+  console.log('Remaining daily email quota: ' + MailApp.getRemainingDailyQuota());
 }
 
 // Live-formula dashboard — every cell recalculates automatically as rows
@@ -261,6 +285,11 @@ function doPost(e) {
     var headcount = '';
     var companionsText = '';
 
+    // Gift is an optional preference, not a claim — silently drop anything
+    // that isn't one of the current options rather than failing the RSVP.
+    var gift = (payload.gift || '').toString().trim();
+    if (attending !== 'Yes' || GIFT_OPTIONS.indexOf(gift) === -1) gift = '';
+
     if (!name || !email) {
       return jsonResponse_({ status: 'error', message: 'Name and email are required.' });
     }
@@ -304,12 +333,13 @@ function doPost(e) {
       attending,
       headcount,
       '',
-      '',
+      sanitizeForSheet_(gift),
       sanitizeForSheet_(notes),
       sanitizeForSheet_(companionsText)
     ]);
 
-    notifyTelegram_(name, attending, headcount, notes);
+    notifyTelegram_(name, attending, headcount, notes, gift);
+    sendConfirmationEmail_(name, email, attending, gift);
 
     return jsonResponse_({ status: 'ok' });
   } finally {
@@ -319,7 +349,7 @@ function doPost(e) {
 
 // Best-effort host notification — never let a Telegram outage break the
 // RSVP flow, so failures are swallowed after one log entry.
-function notifyTelegram_(name, attending, headcount, notes) {
+function notifyTelegram_(name, attending, headcount, notes, gift) {
   var props = PropertiesService.getScriptProperties();
   var token = props.getProperty('TELEGRAM_BOT_TOKEN');
   var chatId = props.getProperty('TELEGRAM_CHAT_ID');
@@ -327,6 +357,7 @@ function notifyTelegram_(name, attending, headcount, notes) {
 
   var lines = ['🎉 New RSVP: ' + name];
   lines.push(attending === 'Yes' ? '✅ Attending (' + headcount + ' pax)' : '❌ Not attending');
+  if (gift) lines.push('🎁 Gift: ' + gift);
   if (notes) lines.push('📝 Notes: ' + notes);
 
   var url = 'https://api.telegram.org/bot' + token + '/sendMessage';
@@ -339,5 +370,38 @@ function notifyTelegram_(name, attending, headcount, notes) {
     });
   } catch (err) {
     console.error('Telegram notification failed: ' + err);
+  }
+}
+
+// Best-effort guest confirmation — never let a Mail quota/permission issue
+// break the RSVP flow itself, so failures are swallowed after one log entry.
+function sendConfirmationEmail_(name, email, attending, gift) {
+  try {
+    var config = getConfigMap_();
+    var eventTitle = config.event_title || 'the celebration';
+    var dateWords = formatDateWords_(config.event_date);
+    var venue = (!config.venue_name || config.venue_name.toUpperCase().indexOf('TBD') !== -1) ? 'To be announced' : config.venue_name;
+    var timeRange = (config.start_time || '') + '–' + (config.end_time || '');
+
+    var subject, body;
+    if (attending === 'Yes') {
+      subject = "You're confirmed for " + eventTitle + "! 🦈";
+      body = 'Hi ' + name + ',\n\n' +
+        'Salamat for confirming your RSVP! We\'re so excited to celebrate with you.\n\n' +
+        'Date: ' + dateWords + '\n' +
+        'Time: ' + timeRange + '\n' +
+        'Venue: ' + venue + '\n\n' +
+        (gift ? ('You mentioned you might bring: ' + gift + '. Thank you so much!\n\n') : '') +
+        'See you there!\n\nWarmly,\nThe Family';
+    } else {
+      subject = 'Thanks for letting us know — ' + eventTitle;
+      body = 'Hi ' + name + ',\n\n' +
+        'Thank you for taking the time to respond. We\'re sorry you can\'t make it, but we truly appreciate you letting us know.\n\n' +
+        'We\'ll be thinking of you on ' + dateWords + '!\n\nWarmly,\nThe Family';
+    }
+
+    MailApp.sendEmail(email, subject, body);
+  } catch (err) {
+    console.error('Confirmation email failed: ' + err);
   }
 }
