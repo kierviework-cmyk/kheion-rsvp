@@ -340,6 +340,19 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// Formats "2026-09-16" -> "September 16, 2026"; falls back to the raw
+// string if it isn't a plain YYYY-MM-DD date.
+function formatDateWords(dateStr) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || "");
+  if (!m) return dateStr || "";
+  const [, y, mo, d] = m;
+  const monthName = MONTH_NAMES[parseInt(mo, 10) - 1];
+  if (!monthName) return dateStr;
+  return `${monthName} ${parseInt(d, 10)}, ${y}`;
+}
+
 // Parses "10:00 AM" -> {h,m} in 24h
 function parseTime(t) {
   const m = /(\d+):(\d+)\s*(AM|PM)/i.exec(t || "");
@@ -399,14 +412,14 @@ async function loadInfo(attempt) {
 function renderForm() {
   const venue = isTbd(CONFIG.venue_name) ? "To be announced" : CONFIG.venue_name;
   const address = isTbd(CONFIG.venue_address) ? "" : `<div class="details muted">${escapeHtml(CONFIG.venue_address)}</div>`;
-  const deadline = isTbd(CONFIG.rsvp_deadline) ? "" : `<div class="hint" style="margin-top:8px;">Please RSVP by ${escapeHtml(CONFIG.rsvp_deadline)}</div>`;
+  const deadline = isTbd(CONFIG.rsvp_deadline) ? "" : `<div class="hint" style="margin-top:8px;">Please RSVP by ${escapeHtml(formatDateWords(CONFIG.rsvp_deadline))}</div>`;
 
   const html = `
     <div class="card hero">
       <div class="emoji">${sharkFace(52)}<span>🎉</span><span>✝️</span></div>
       <h1>${escapeHtml(CONFIG.event_title || "You're Invited!")}</h1>
       <div class="subtitle">Birthday &amp; Christening — a double celebration!</div>
-      <div class="details">${escapeHtml(CONFIG.event_date || "")} · ${escapeHtml(CONFIG.start_time || "")}–${escapeHtml(CONFIG.end_time || "")}</div>
+      <div class="details">${escapeHtml(formatDateWords(CONFIG.event_date))} · ${escapeHtml(CONFIG.start_time || "")}–${escapeHtml(CONFIG.end_time || "")}</div>
       <div class="details">${escapeHtml(venue)}</div>
       ${address}
       ${deadline}
@@ -678,7 +691,7 @@ function renderSuccess() {
   if (state.attending === "No") {
     message = `<p>We'll miss you! Thank you for letting us know, ${escapeHtml(state.name)}.</p>`;
   } else {
-    message += `<p>See you on ${escapeHtml(CONFIG.event_date || "")}!</p>`;
+    message += `<p>See you on ${escapeHtml(formatDateWords(CONFIG.event_date))}!</p>`;
   }
 
   let extras = "";
