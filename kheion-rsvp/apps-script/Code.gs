@@ -261,8 +261,12 @@ function doPost(e) {
     var headcount = '';
     var companionsText = '';
 
-    if (!name || !phone) {
-      return jsonResponse_({ status: 'error', message: 'Name and phone are required.' });
+    if (!name || !phone || !email) {
+      return jsonResponse_({ status: 'error', message: 'Name, phone, and email are required.' });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return jsonResponse_({ status: 'error', message: 'Please enter a valid email address.' });
     }
 
     if (name.length > MAX_FIELD_LEN.name || phone.length > MAX_FIELD_LEN.phone ||
