@@ -72,7 +72,14 @@
     opacity: 0.5;
     letter-spacing: 10px;
   }
-  .hero .emoji { font-size: 44px; margin-bottom: 8px; }
+  .emoji {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .shark-face { display: block; flex-shrink: 0; }
+  .hero .emoji { font-size: 40px; margin-bottom: 8px; }
   .hero h1 {
     font-family: "Baloo 2", "Nunito", sans-serif;
     font-size: 30px;
@@ -285,6 +292,26 @@
 </div>
 
 <script>
+// Original cute baby-shark face, drawn as inline SVG (no external image,
+// not a reproduction of any copyrighted character art).
+function sharkFace(size) {
+  return `<svg class="shark-face" width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M36 30 L50 2 L64 30 Z" fill="#ffd23f"/>
+    <ellipse cx="50" cy="54" rx="38" ry="42" fill="#ffd23f"/>
+    <path d="M8 50 Q2 40 14 36 Q10 46 18 52 Z" fill="#ffd23f"/>
+    <path d="M92 50 Q98 40 86 36 Q90 46 82 52 Z" fill="#ffd23f"/>
+    <circle cx="34" cy="46" r="12" fill="#fff"/>
+    <circle cx="66" cy="46" r="12" fill="#fff"/>
+    <circle cx="36.5" cy="48.5" r="6" fill="#073763"/>
+    <circle cx="68.5" cy="48.5" r="6" fill="#073763"/>
+    <circle cx="39" cy="45" r="2" fill="#fff"/>
+    <circle cx="71" cy="45" r="2" fill="#fff"/>
+    <path d="M30 74 Q50 90 70 74" stroke="#073763" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <path d="M40 76 L44 84 L48 76 Z" fill="#fff"/>
+    <path d="M52 76 L56 84 L60 76 Z" fill="#fff"/>
+  </svg>`;
+}
+
 // ====== CONFIGURATION ======
 // Replace with your deployed Apps Script Web App URL (ends in /exec).
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFpNyiy_lKrVjjZ5WRC8LEslSuSR1t7VPYFzz8mKYrAWRwGhW38crvxgsNboixP26Saw/exec";
@@ -363,7 +390,7 @@ function renderForm() {
 
   const html = `
     <div class="card hero">
-      <div class="emoji">🦈🎉✝️</div>
+      <div class="emoji">${sharkFace(52)}<span>🎉</span><span>✝️</span></div>
       <h1>${escapeHtml(CONFIG.event_title || "You're Invited!")}</h1>
       <div class="subtitle">Birthday &amp; Christening — a double celebration!</div>
       <div class="details">${escapeHtml(CONFIG.event_date || "")} · ${escapeHtml(CONFIG.start_time || "")}–${escapeHtml(CONFIG.end_time || "")}</div>
@@ -655,7 +682,7 @@ function renderSuccess() {
 
   document.getElementById("mainContent").innerHTML = `
     <div class="card success-screen">
-      <div class="emoji">🦈🎉</div>
+      <div class="emoji">${sharkFace(56)}<span>🎉</span></div>
       <h2>RSVP received!</h2>
       ${message}
       ${extras}
