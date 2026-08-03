@@ -369,7 +369,14 @@ function fmtGcalDate(d) {
 }
 
 // ====== FETCH INFO ======
-async function loadInfo() {
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Transient network blips are common on mobile connections. Retry a couple
+// of times with a short delay before showing the guest a fatal error.
+async function loadInfo(attempt) {
+  attempt = attempt || 1;
   try {
     const res = await fetch(WEB_APP_URL + "?action=info");
     const data = await res.json();
@@ -379,6 +386,10 @@ async function loadInfo() {
     document.getElementById("mainContent").classList.remove("hidden");
     renderForm();
   } catch (err) {
+    if (attempt < 3) {
+      await sleep(1200 * attempt);
+      return loadInfo(attempt + 1);
+    }
     document.getElementById("loadingScreen").classList.add("hidden");
     document.getElementById("fatalError").classList.remove("hidden");
   }
