@@ -261,8 +261,8 @@ function doPost(e) {
     var headcount = '';
     var companionsText = '';
 
-    if (!name || !phone || !email) {
-      return jsonResponse_({ status: 'error', message: 'Name, phone, and email are required.' });
+    if (!name || !email) {
+      return jsonResponse_({ status: 'error', message: 'Name and email are required.' });
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
