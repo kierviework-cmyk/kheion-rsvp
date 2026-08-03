@@ -23,10 +23,6 @@ var DEFAULT_CONFIG = [
   ['rsvp_deadline', '[RSVP_DEADLINE_TBD]']
 ];
 
-// Initial, host-confirmed short list — not an inventory (multiple guests
-// can pick the same one, nothing gets "claimed" or crossed out).
-var GIFT_OPTIONS = ['Monetary gift (red envelope)', 'Milk', 'Diapers'];
-
 var MONTH_NAMES_ = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function formatDateWords_(dateStr) {
@@ -137,9 +133,6 @@ function seedSummarySheet_(sheet) {
     ['Not attending (No)', '=COUNTIF(RSVPs!F2:F,"No")'],
     ['Total headcount', '=SUM(RSVPs!G2:G)']
   ];
-  GIFT_OPTIONS.forEach(function (option) {
-    stats.push([option, '=COUNTIF(RSVPs!I2:I,"' + option + '")']);
-  });
   sheet.getRange(3, 1, stats.length, 2).setValues(stats);
   sheet.getRange(3, 1, stats.length, 1).setFontWeight('bold');
 
@@ -194,8 +187,8 @@ function sanitizeForSheet_(value) {
 var MAX_FIELD_LEN = { name: 200, phone: 20, email: 254, address: 300, notes: 1000, companion: 200 };
 
 // Cheap global throttle shared by every caller (Apps Script doesn't expose a
-// reliable per-caller IP), capped low enough to blunt a flood/gift-exhaustion
-// script without affecting normal RSVP traffic.
+// reliable per-caller IP), capped low enough to blunt a flood/spam script
+// without affecting normal RSVP traffic.
 function isRateLimited_() {
   var cache = CacheService.getScriptCache();
   var key = 'rsvp_submit_count_60s';
@@ -252,11 +245,6 @@ function doPost(e) {
     var headcount = '';
     var companionsText = '';
 
-    // Gift is an optional preference, not a claim — silently drop anything
-    // that isn't one of the current options rather than failing the RSVP.
-    var gift = (payload.gift || '').toString().trim();
-    if (attending !== 'Yes' || GIFT_OPTIONS.indexOf(gift) === -1) gift = '';
-
     if (!name || !email) {
       return jsonResponse_({ status: 'error', message: 'Name and email are required.' });
     }
@@ -300,13 +288,13 @@ function doPost(e) {
       attending,
       headcount,
       '',
-      sanitizeForSheet_(gift),
+      '',
       sanitizeForSheet_(notes),
       sanitizeForSheet_(companionsText)
     ]);
 
-    notifyTelegram_(name, attending, headcount, notes, gift);
-    sendConfirmationEmail_(name, email, attending, gift);
+    notifyTelegram_(name, attending, headcount, notes);
+    sendConfirmationEmail_(name, email, attending);
 
     return jsonResponse_({ status: 'ok' });
   } finally {
@@ -316,7 +304,7 @@ function doPost(e) {
 
 // Best-effort host notification — never let a Telegram outage break the
 // RSVP flow, so failures are swallowed after one log entry.
-function notifyTelegram_(name, attending, headcount, notes, gift) {
+function notifyTelegram_(name, attending, headcount, notes) {
   var props = PropertiesService.getScriptProperties();
   var token = props.getProperty('TELEGRAM_BOT_TOKEN');
   var chatId = props.getProperty('TELEGRAM_CHAT_ID');
@@ -324,7 +312,6 @@ function notifyTelegram_(name, attending, headcount, notes, gift) {
 
   var lines = ['🎉 New RSVP: ' + name];
   lines.push(attending === 'Yes' ? '✅ Attending (' + headcount + ' pax)' : '❌ Not attending');
-  if (gift) lines.push('🎁 Gift: ' + gift);
   if (notes) lines.push('📝 Notes: ' + notes);
 
   var url = 'https://api.telegram.org/bot' + token + '/sendMessage';
@@ -342,7 +329,7 @@ function notifyTelegram_(name, attending, headcount, notes, gift) {
 
 // Best-effort guest confirmation — never let a Mail quota/permission issue
 // break the RSVP flow itself, so failures are swallowed after one log entry.
-function sendConfirmationEmail_(name, email, attending, gift) {
+function sendConfirmationEmail_(name, email, attending) {
   try {
     var config = getConfigMap_();
     var eventTitle = config.event_title || 'the celebration';
@@ -358,7 +345,6 @@ function sendConfirmationEmail_(name, email, attending, gift) {
         'Date: ' + dateWords + '\n' +
         'Time: ' + timeRange + '\n' +
         'Venue: ' + venue + '\n\n' +
-        (gift ? ('You mentioned you might bring: ' + gift + '. Thank you so much!\n\n') : '') +
         'See you there!\n\nWarmly,\nThe Family';
     } else {
       subject = 'Thanks for letting us know — ' + eventTitle;

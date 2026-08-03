@@ -333,15 +333,12 @@ function sharkFace(size) {
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFpNyiy_lKrVjjZ5WRC8LEslSuSR1t7VPYFzz8mKYrAWRwGhW38crvxgsNboixP26Saw/exec";
 
 // ====== STATE ======
-const GIFT_OPTIONS = ["Monetary gift (red envelope)", "Milk", "Diapers"];
-
 let CONFIG = {};
 let state = {
   name: "", phone: "", email: "", address: "",
   attending: null,
   companionsMode: null, // "no" | "yes"
   companions: [], // [{name, phone}]
-  gift: "",
   notes: ""
 };
 let submitted = false;
@@ -495,29 +492,14 @@ function renderAttendingSection() {
   if (state.attending === "Yes") {
     el.innerHTML = `
       ${buildCompanionsCard()}
-      ${buildGiftCard()}
       <div class="card">
         <label>Notes for the family (optional)</label>
         <textarea id="fNotes" maxlength="1000">${escapeHtml(state.notes)}</textarea>
       </div>
     `;
     bindCompanionsHandlers();
-    bindGiftHandlers();
     bindNotes();
   }
-}
-
-function buildGiftCard() {
-  const options = GIFT_OPTIONS.map(g => `
-    <div class="pill ${state.gift === g ? "selected" : ""}" data-gift="${escapeHtml(g)}">${escapeHtml(g)}</div>
-  `).join("");
-
-  return `
-    <div class="card">
-      <div class="question">If you're planning to give a gift, we encourage you to pick one below: <span class="hint">(optional)</span></div>
-      <div class="pills">${options}</div>
-    </div>
-  `;
 }
 
 function buildCompanionsCard() {
@@ -612,17 +594,6 @@ function bindCompanionsHandlers() {
   });
 }
 
-function bindGiftHandlers() {
-  document.querySelectorAll(".pill[data-gift]").forEach(pill => {
-    pill.addEventListener("click", () => {
-      const value = pill.getAttribute("data-gift");
-      state.gift = state.gift === value ? "" : value;
-      document.querySelectorAll(".pill[data-gift]").forEach(p => p.classList.remove("selected"));
-      if (state.gift) pill.classList.add("selected");
-    });
-  });
-}
-
 function focusById(id) {
   const el = document.getElementById(id);
   if (el) el.focus();
@@ -689,7 +660,6 @@ async function handleSubmit() {
     address: state.address,
     attending: state.attending,
     companions: state.companionsMode === "yes" ? state.companions : [],
-    gift: state.gift,
     notes: state.notes,
     website: websiteField ? websiteField.value : ""
   };
@@ -746,9 +716,6 @@ function renderSuccess() {
   if (state.attending === "Yes" && state.companionsMode === "yes" && state.companions.length > 0) {
     const names = state.companions.map(c => escapeHtml(c.name.trim())).filter(Boolean).join(", ");
     extras += `<div class="note-box">👥 Bringing: ${names} <span class="hint">(party of ${1 + state.companions.length})</span></div>`;
-  }
-  if (state.attending === "Yes" && state.gift) {
-    extras += `<div class="note-box">🎁 You mentioned bringing: <strong>${escapeHtml(state.gift)}</strong></div>`;
   }
   const calButtons = state.attending === "Yes" ? `
     <div class="cal-buttons">
