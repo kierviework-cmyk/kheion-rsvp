@@ -256,9 +256,6 @@ function doPost(e) {
     var email = (payload.email || '').toString().trim();
     var address = (payload.address || '').toString().trim();
     var attending = payload.attending === 'Yes' ? 'Yes' : 'No';
-    var isGodparent = payload.isGodparent === 'Yes';
-    var godparent = isGodparent ? (payload.godparent || '').toString().trim() : '';
-    var gift = (payload.gift || '').toString().trim();
     var notes = (payload.notes || '').toString().trim();
     var companionsInput = Array.isArray(payload.companions) ? payload.companions : [];
     var headcount = '';
@@ -291,47 +288,7 @@ function doPost(e) {
       if (headcount > 20) {
         return jsonResponse_({ status: 'error', message: 'Total party size must be 20 or fewer.' });
       }
-
-      if (isGodparent && godparent !== 'Ninong' && godparent !== 'Ninang') {
-        return jsonResponse_({ status: 'error', message: 'Please select Ninong or Ninang.' });
-      }
-    } else {
-      godparent = '';
-      gift = '';
     }
-
-    // Re-check gift availability inside the lock (someone may have just claimed it).
-    if (attending === 'Yes' && isGodparent && gift) {
-      var giftsSheet = getGiftsSheet_();
-      var giftValues = giftsSheet.getDataRange().getValues();
-      var giftRow = -1;
-      for (var i = 1; i < giftValues.length; i++) {
-        if (giftValues[i][0] === gift) {
-          giftRow = i;
-          break;
-        }
-      }
-
-      var stillAvailable = giftRow !== -1 && !giftValues[giftRow][1];
-
-      if (!stillAvailable) {
-        return jsonResponse_({
-          status: 'gift_taken',
-          message: 'Someone just claimed that gift — please pick another.',
-          availableGifts: getAvailableGifts_()
-        });
-      }
-
-      giftsSheet.getRange(giftRow + 1, 2, 1, 2).setValues([[sanitizeForSheet_(name), new Date()]]);
-    } else if (attending === 'Yes' && isGodparent && !gift) {
-      // Gift is required for godparents, unless none are left to choose from.
-      if (getAvailableGifts_().length > 0) {
-        return jsonResponse_({ status: 'error', message: 'Please select a gift to bring.' });
-      }
-    }
-
-    var finalGodparent = attending === 'Yes' && isGodparent ? godparent : '';
-    var finalGift = attending === 'Yes' && isGodparent ? gift : '';
 
     var rsvpSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RSVP_SHEET);
     rsvpSheet.appendRow([
@@ -342,13 +299,13 @@ function doPost(e) {
       sanitizeForSheet_(address),
       attending,
       headcount,
-      finalGodparent,
-      finalGift,
+      '',
+      '',
       sanitizeForSheet_(notes),
       sanitizeForSheet_(companionsText)
     ]);
 
-    notifyTelegram_(name, attending, headcount, finalGodparent, finalGift, notes);
+    notifyTelegram_(name, attending, headcount, notes);
 
     return jsonResponse_({ status: 'ok' });
   } finally {
@@ -358,7 +315,7 @@ function doPost(e) {
 
 // Best-effort host notification — never let a Telegram outage break the
 // RSVP flow, so failures are swallowed after one log entry.
-function notifyTelegram_(name, attending, headcount, godparent, gift, notes) {
+function notifyTelegram_(name, attending, headcount, notes) {
   var props = PropertiesService.getScriptProperties();
   var token = props.getProperty('TELEGRAM_BOT_TOKEN');
   var chatId = props.getProperty('TELEGRAM_CHAT_ID');
@@ -366,8 +323,6 @@ function notifyTelegram_(name, attending, headcount, godparent, gift, notes) {
 
   var lines = ['🎉 New RSVP: ' + name];
   lines.push(attending === 'Yes' ? '✅ Attending (' + headcount + ' pax)' : '❌ Not attending');
-  if (godparent) lines.push('🙏 Godparent: ' + godparent);
-  if (gift) lines.push('🎁 Gift: ' + gift);
   if (notes) lines.push('📝 Notes: ' + notes);
 
   var url = 'https://api.telegram.org/bot' + token + '/sendMessage';
